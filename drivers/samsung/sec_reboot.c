@@ -20,10 +20,10 @@
 #include <asm/system_misc.h>
 #include <linux/power_supply.h>
 #include <linux/sec_debug.h>
-#if defined(CONFIG_SEC_ABC)
 #ifndef CONFIG_SEC_DEBUG
 struct ram_console_buffer *ram_console_buffer = NULL;
 #endif
+#if defined(CONFIG_SEC_ABC)
 #include <linux/sti/abc_common.h>
 #endif
 #define psy_get_property(psy, property, value) \
