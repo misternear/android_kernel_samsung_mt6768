@@ -1,12 +1,5 @@
 #!/bin/sh
 
-# Terminal Colors
-GREEN='\033[1;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[1;36m'
-RED='\033[1;31m'
-NC='\033[0m'
-
 TARGET_DIR="drivers/misc/mediatek/base/power/cpufreq_v1/src/mach/mt6768"
 
 FILE_PV="$TARGET_DIR/mtk_cpufreq_opp_pv_table.h"
@@ -14,11 +7,11 @@ FILE_OPP="$TARGET_DIR/mtk_cpufreq_opp_table.h"
 FILE_UPOWER="drivers/misc/mediatek/base/power/include/upower_v2/mtk_unified_power_data_mt6768.h"
 
 if [ ! -d "$TARGET_DIR" ]; then
-    printf "${RED}Error: Directory '%s' not found.${NC}\n" "$TARGET_DIR"
+    printf "Error: Directory '%s' not found.\n" "$TARGET_DIR"
     exit 1
 fi
 
-printf "${CYAN}Type 'reset' to restore stock values, or press Enter to continue:${NC} "
+printf "Type 'reset' to restore stock values, or press Enter to continue: "
 read CMD_INPUT
 
 if [ "$CMD_INPUT" = "reset" ]; then
@@ -30,31 +23,31 @@ if [ "$CMD_INPUT" = "reset" ]; then
 else
     TARGET_BOTTOM_L=0
     TARGET_BOTTOM_B=0
-    printf "${CYAN}Minimize Table Compression: Do you want to drop the bottom OPP floor? (y/n): ${NC}"
+    printf "Minimize Table Compression: Do you want to drop the bottom OPP floor? (y/n): "
     read DROP_BOTTOM
 
     if [ "$DROP_BOTTOM" = "y" ] || [ "$DROP_BOTTOM" = "Y" ]; then
-        printf "${YELLOW}Enter Little (L) BOTTOM OPP adjustment in mV (e.g., -25): ${NC}"
+        printf "Enter Little (L) BOTTOM OPP adjustment in mV (e.g., -25): "
         read TARGET_BOTTOM_L
-        printf "${YELLOW}Enter Big (B) BOTTOM OPP adjustment in mV (e.g., -25): ${NC}"
+        printf "Enter Big (B) BOTTOM OPP adjustment in mV (e.g., -25): "
         read TARGET_BOTTOM_B
     fi
 
-    printf "${YELLOW}Enter Little (L) TOP adjustment in mV (e.g., -200): ${NC}"
+    printf "Enter Little (L) TOP adjustment in mV (e.g., -200): "
     read TARGET_L
-    printf "${YELLOW}Enter Big (B) TOP adjustment in mV (e.g., -250): ${NC}"
+    printf "Enter Big (B) TOP adjustment in mV (e.g., -250): "
     read TARGET_B
 fi
 
 # Validation
 for val in "$TARGET_L" "$TARGET_B" "$TARGET_BOTTOM_L" "$TARGET_BOTTOM_B"; do
     if ! echo "$val" | grep -qE '^[-+]?[0-9]+$'; then
-        printf "${RED}Error: '%s' is not a valid integer.${NC}\n" "$val"
+        printf "Error: '%s' is not a valid integer.\n" "$val"
         exit 1
     fi
 done
 
-printf "${CYAN}[INFO] CCI Voltage: Automatically synchronized with Little cluster.${NC}\n"
+printf "[INFO] CCI Voltage: Automatically synchronized with Little cluster.\n"
 
 # Perform Calculations and generate the 48 values
 NEW_VPROCS_LINE=$(awk -v t_l="$TARGET_L" -v t_b="$TARGET_B" -v tb_l="$TARGET_BOTTOM_L" -v tb_b="$TARGET_BOTTOM_B" '
@@ -176,16 +169,16 @@ BEGIN {
     }
 
     # Print summary to stderr
-    printf("\n\033[1;36m=== Voltages Applied ===\033[0m\n") > "/dev/stderr"
+    printf("\n=== Voltages Applied ===\n") > "/dev/stderr"
     for (j=0; j<2; j++) {
         vt = calculated_vprocs[j,0]; vb = calculated_vprocs[j,15]
         printf(" %s : Top: %7.2f mV (%.2fV) | Bot: %7.2f mV (%.2fV)\n", 
             names[j], actual_mv[j], (vt * 6.25 + 500) / 1000, actual_bot_mv[j], (vb * 6.25 + 500) / 1000) > "/dev/stderr"
     }
-    printf("\033[1;36m==========================================\033[0m\n\n") > "/dev/stderr"
+    printf("==========================================\n\n") > "/dev/stderr"
 
     if (limit_hit == 1) {
-        printf("\033[1;33m[!] UNDERVOLT LIMIT REACHED (TABLE COMPRESSION)\033[0m\n") > "/dev/stderr"
+        printf("[!] UNDERVOLT LIMIT REACHED (TABLE COMPRESSION)\n") > "/dev/stderr"
         printf("    A bottom-up +1 correction was applied %d times to maintain monotonicity.\n", overlap_corrections) > "/dev/stderr"
     }
 
@@ -200,7 +193,7 @@ BEGIN {
 }')
 
 if [ -z "$NEW_VPROCS_LINE" ]; then
-    printf "${RED}Error: Failed to calculate new voltages.${NC}\n"
+    printf "Error: Failed to calculate new voltages.\n"
     exit 1
 fi
 
@@ -270,7 +263,7 @@ in_struct && /\.volt = [0-9]+/ {
 touch "$TARGET_DIR"/*.c "$TARGET_DIR"/*.h drivers/misc/mediatek/base/power/include/upower_v2/*.h
 
 if [ "$CMD_INPUT" = "reset" ]; then
-    printf "\n${GREEN}[✓] Success! Restored stock CPU values.${NC}\n"
+    printf "\n[✓] Success! Restored stock CPU values.\n"
 else
-    printf "\n${GREEN}[✓] Success! Tables & Energy Model updated.${NC}\n"
+    printf "\n[✓] Success! Tables & Energy Model updated.\n"
 fi

@@ -1,27 +1,20 @@
 #!/bin/sh
 
-# Terminal Colors
-GREEN='\033[1;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[1;36m'
-RED='\033[1;31m'
-NC='\033[0m'
-
 TARGET_DIR="drivers/misc/mediatek/base/power/mt6768"
 FILE_C="$TARGET_DIR/mtk_gpufreq_core.c"
 FILE_H="$TARGET_DIR/mtk_gpufreq_core.h"
 
 if [ ! -d "$TARGET_DIR" ]; then
-    printf "${RED}Error: Directory '%s' not found. Run from kernel root.${NC}\n" "$TARGET_DIR"
+    printf "Error: Directory '%s' not found. Run from kernel root.\n" "$TARGET_DIR"
     exit 1
 fi
 
 if [ ! -f "$FILE_C" ] || [ ! -f "$FILE_H" ]; then
-    printf "${RED}Error: Could not find driver files in '%s'.${NC}\n" "$TARGET_DIR"
+    printf "Error: Could not find driver files in '%s'.\n" "$TARGET_DIR"
     exit 1
 fi
 
-echo "${CYAN}Type 'reset' to restore stock driver/tables, or press Enter to continue:${NC}"
+printf "Type 'reset' to restore stock driver/tables, or press Enter to continue: "
 read CMD_INPUT
 if [ "$CMD_INPUT" = "reset" ]; then
     NUM_STATES=32
@@ -30,14 +23,14 @@ if [ "$CMD_INPUT" = "reset" ]; then
 else
     # User inputs
     while true; do
-        printf "${YELLOW}States (4-32): ${NC}" && read NUM_STATES
+        printf "States (4-32): " && read NUM_STATES
         if [ "$NUM_STATES" -ge 4 ] && [ "$NUM_STATES" -le 32 ] 2>/dev/null; then
             break
         fi
-        printf "${RED}Error: States must be an integer between 4 and 32.${NC}\n"
+        printf "Error: States must be an integer between 4 and 32.\n"
     done
-    printf "${YELLOW}Freq Adjustment (Stock top: 1000 MHz | enter +/- MHz delta): ${NC}" && read TARGET_FREQ
-    printf "${YELLOW}Volt Adjustment (Stock top: 950 mV, floor: 612.5 mV | enter +/- mV): ${NC}" && read TARGET_VOLT
+    printf "Freq Adjustment (Stock top: 1000 MHz | enter +/- MHz delta): " && read TARGET_FREQ
+    printf "Volt Adjustment (Stock top: 950 mV, floor: 612.5 mV | enter +/- mV): " && read TARGET_VOLT
 fi
 
 MAX_IDX=$((NUM_STATES - 1))
@@ -158,7 +151,7 @@ $1 == "#define" && $2 == "FIXED_VSRAM_VOLT" {
 
 touch "$TARGET_DIR"/*.c "$TARGET_DIR"/*.h
 if [ "$CMD_INPUT" = "reset" ]; then
-    printf "\n${GREEN}[✓] Success! Restored stock GPU driver/tables.${NC}\n"
+    printf "\n[✓] Success! Restored stock GPU driver/tables.\n"
 else
-    printf "\n${GREEN}[✓] Success! GPU Tables updated in $TARGET_DIR.${NC}\n"
+    printf "\n[✓] Success! GPU Tables updated in $TARGET_DIR.\n"
 fi

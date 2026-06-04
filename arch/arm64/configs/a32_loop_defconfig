@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm64 4.14.356-openela Kernel Configuration
+# Linux/arm64 4.14.357-openela Kernel Configuration
 #
 CONFIG_ARM64=y
 CONFIG_64BIT=y
@@ -1452,7 +1452,7 @@ CONFIG_MTK_BASE_POWER=y
 # CONFIG_MTK_APUSYS_VPU is not set
 # CONFIG_MTK_APUSYS_EDMA_SUPPORT is not set
 CONFIG_MTK_CPU_FREQ=y
-# CONFIG_MTK_PTPOD is not set
+CONFIG_MTK_PTPOD=y
 # CONFIG_MTK_PTPOD_GPU is not set
 # CONFIG_MTK_CPU_MSSV is not set
 # CONFIG_MTK_CPU_KORO is not set

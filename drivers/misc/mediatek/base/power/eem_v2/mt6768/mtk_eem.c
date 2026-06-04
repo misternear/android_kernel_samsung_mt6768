@@ -1694,37 +1694,9 @@ static void get_volt_table_in_thread(struct eem_det *det)
 				ndet->volt_tbl_orig[i] + ndet->volt_clamp);
 			break;
 		case EEM_CTRL_GPU:
-			if (i == 0 && gpu_vb_flag) {
-				ndet->volt_tbl_pmic[i] = min(
-				(unsigned int)(clamp(
-				ndet->ops->eem_2_pmic(ndet,
-				(ndet->ops->volt_2_eem(ndet, gpu_vb_volt))),
-				ndet->ops->eem_2_pmic(ndet, ndet->VMIN),
-				ndet->ops->eem_2_pmic(ndet, VMAX_VAL_GPU)) +
-				low_temp_offset),
-				ndet->volt_tbl_orig[i] + ndet->volt_clamp);
-			}
-
-			else
-				ndet->volt_tbl_pmic[i] = min(
-				(unsigned int)(clamp(
-				ndet->ops->eem_2_pmic(ndet,
-				(ndet->volt_tbl[i] + ndet->volt_offset +
-				ndet->volt_aging[i]) +
-				rm_dvtfix_offset - ndet->volt_dcv),
-				ndet->ops->eem_2_pmic(ndet, ndet->VMIN),
-				ndet->ops->eem_2_pmic(ndet, VMAX_VAL_GPU)) +
-				low_temp_offset),
-				ndet->volt_tbl_orig[i] + ndet->volt_clamp +
-				t_clamp);
-#if 0
-			if ((i == 1) &&
-				(ndet->volt_tbl_pmic[1] >
-				ndet->volt_tbl_pmic[0])) {
-				ndet->volt_tbl_pmic[0] = ndet->volt_tbl_pmic[1];
-			}
-#endif
-
+			/* Use OPP voltage as base, apply only volt_offset */
+			ndet->volt_tbl_pmic[i] = ndet->volt_tbl_orig[i]
+				+ ndet->volt_offset;
 			break;
 #if ENABLE_VPU
 		case EEM_CTRL_VPU:
@@ -1788,8 +1760,7 @@ static void get_volt_table_in_thread(struct eem_det *det)
 
 	}
 
-	if ((ndet->ctrl_id == EEM_CTRL_L) ||
-		(ndet->ctrl_id == EEM_CTRL_GPU))
+	if (ndet->ctrl_id == EEM_CTRL_L)
 		eem_interpolate_mid_opp(ndet);
 
 	eem_save_final_volt_aee(ndet);
