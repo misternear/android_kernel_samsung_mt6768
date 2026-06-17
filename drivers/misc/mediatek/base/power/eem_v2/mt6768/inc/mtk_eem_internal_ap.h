@@ -120,6 +120,7 @@ struct eem_det {
 	unsigned int num_freq_tbl;
 	/* maximum frequency used to calculate percentage */
 	unsigned int max_freq_khz;
+	unsigned int abs_freq_tbl[NR_FREQ]; /* absolute freq in khz */
 	unsigned char freq_tbl[NR_FREQ]; /* percentage to maximum freq */
 	/* orig volt table for restoreing to dvfs*/
 	unsigned int volt_tbl_orig[NR_FREQ];

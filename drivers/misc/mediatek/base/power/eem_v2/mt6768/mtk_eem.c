@@ -1640,82 +1640,29 @@ static void get_volt_table_in_thread(struct eem_det *det)
 				low_temp_offset = ndet->low_temp_off;
 		}
 
-		switch (ndet->ctrl_id) {
-		case EEM_CTRL_L:
-			if ((i == 0) && (ndet->turn_pt != 0))
-				ndet->volt_tbl_pmic[i] = ndet->volt_tbl_orig[i]
-				+ ndet->volt_offset + ndet->volt_aging[i];
+		int new_volt;
+		/* Bypass all EEM hardware calculations and offsets */
+		int step_change = 0;
+		int max_f = ndet->abs_freq_tbl[0];
+		int min_f = ndet->abs_freq_tbl[ndet->num_freq_tbl - 1];
+
+		if (max_f != min_f) {
+			int ratio_num = ndet->abs_freq_tbl[i] - min_f;
+			int ratio_den = max_f - min_f;
+			int change_scaled = ndet->volt_offset * ratio_num;
+
+			if (change_scaled < 0)
+				step_change = (change_scaled - (ratio_den / 2)) / ratio_den;
 			else
-				ndet->volt_tbl_pmic[i] = min(
-				(unsigned int)(clamp(
-				ndet->ops->eem_2_pmic(ndet,
-				(ndet->volt_tbl[i] + ndet->volt_offset +
-				low_temp_offset + ndet->volt_aging[i]) +
-				rm_dvtfix_offset - ndet->volt_dcv),
-				ndet->ops->eem_2_pmic(ndet, ndet->VMIN),
-				ndet->ops->eem_2_pmic(ndet, ndet->VMAX))),
-				ndet->volt_tbl_orig[i] + ndet->volt_clamp);
-			break;
-
-		case EEM_CTRL_B:
-			ndet->volt_tbl_pmic[i] = min(
-			(unsigned int)(clamp(
-				ndet->ops->eem_2_pmic(ndet,
-				(ndet->volt_tbl[i] + ndet->volt_offset +
-				low_temp_offset + ndet->volt_aging[i]) +
-				rm_dvtfix_offset - ndet->volt_dcv),
-				ndet->ops->eem_2_pmic(ndet, ndet->VMIN),
-				ndet->ops->eem_2_pmic(ndet, ndet->VMAX))),
-				ndet->volt_tbl_orig[i] + ndet->volt_clamp);
-
-			/*
-			 *  if (eem_log_en)
-			 *	eem_debug("L->hw_v[%d]=0x%X,V(%d)L(%d)
-			 *		volt_tbl_pmic[%d]=0x%X (%d)\n",
-			 *		i, det->volt_tbl[i],
-			 *		det->volt_offset, low_temp_offset,
-			 *		i, det->volt_tbl_pmic[i],
-			 *		det->ops->pmic_2_volt(det,
-			 *		det->volt_tbl_pmic[i]));
-			 *
-			 */
-
-			break;
-
-		case EEM_CTRL_CCI:
-			ndet->volt_tbl_pmic[i] = min(
-			(unsigned int)(clamp(
-				ndet->ops->eem_2_pmic(ndet,
-				(ndet->volt_tbl[i] + ndet->volt_offset +
-				low_temp_offset + ndet->volt_aging[i]) +
-				rm_dvtfix_offset - ndet->volt_dcv),
-				ndet->ops->eem_2_pmic(ndet, ndet->VMIN),
-				ndet->ops->eem_2_pmic(ndet, ndet->VMAX))),
-				ndet->volt_tbl_orig[i] + ndet->volt_clamp);
-			break;
-		case EEM_CTRL_GPU:
-			/* Use OPP voltage as base, apply only volt_offset */
-			ndet->volt_tbl_pmic[i] = ndet->volt_tbl_orig[i]
-				+ ndet->volt_offset;
-			break;
-#if ENABLE_VPU
-		case EEM_CTRL_VPU:
-			ndet->volt_tbl_pmic[i] = min(
-			(unsigned int)(clamp(
-				ndet->ops->eem_2_pmic(ndet,
-				(ndet->volt_tbl[i] + ndet->volt_offset +
-				low_temp_offset + ndet->volt_aging[i]) +
-				rm_dvtfix_offset - ndet->volt_dcv),
-				ndet->ops->eem_2_pmic(ndet, ndet->VMIN),
-				ndet->ops->eem_2_pmic(ndet, ndet->VMAX))),
-				ndet->volt_tbl_orig[i] + ndet->volt_clamp);
-			break;
-#endif
-		default:
-			eem_error("[eem_set_eem_volt] incorrect det :%s!!",
-					ndet->name);
-			break;
+				step_change = (change_scaled + (ratio_den / 2)) / ratio_den;
 		}
+
+		new_volt = ndet->volt_tbl_orig[i] + step_change;
+		if (new_volt < 0)
+			new_volt = 0;
+		if (new_volt > 127)
+			new_volt = 127;
+		ndet->volt_tbl_pmic[i] = new_volt;
 #if 0
 		eem_error("[%s].volt[%d]=0x%X, Ori[0x%x], pmic[%d]=0x%x(%d)\n",
 			det->name,
@@ -1760,8 +1707,19 @@ static void get_volt_table_in_thread(struct eem_det *det)
 
 	}
 
-	if (ndet->ctrl_id == EEM_CTRL_L)
-		eem_interpolate_mid_opp(ndet);
+	/* Top-down monotonicity pass: lower frequencies (higher indices) MUST have strictly lower voltages */
+	for (i = 1; i < ndet->num_freq_tbl; i++) {
+		if (ndet->volt_tbl_pmic[i] >= ndet->volt_tbl_pmic[i-1]) {
+			int capped = ndet->volt_tbl_pmic[i-1] - 1;
+			if (capped < 0) capped = 0;
+			ndet->volt_tbl_pmic[i] = capped;
+		}
+	}
+
+	if ((ndet->ctrl_id == EEM_CTRL_L) ||
+		(ndet->ctrl_id == EEM_CTRL_GPU)) {
+		// eem_interpolate_mid_opp(ndet);
+	}
 
 	eem_save_final_volt_aee(ndet);
 #if 0

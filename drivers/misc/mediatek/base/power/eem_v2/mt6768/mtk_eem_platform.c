@@ -229,6 +229,7 @@ void get_freq_table_cpu(struct eem_det *det)
 			(curfreq == BANK_B_TURN_FREQ))
 			det->turn_pt = i;
 
+		det->abs_freq_tbl[i] = curfreq;
 		det->freq_tbl[i] = PERCENT(curfreq, det->max_freq_khz);
 #endif
 #if 1
@@ -340,8 +341,10 @@ void get_freq_table_gpu(struct eem_det *det)
 #if DVT
 		det->freq_tbl[i] = dvtfreq[i];
 #else
-		det->freq_tbl[i] = PERCENT(mt_gpufreq_get_freq_by_real_idx
-				(mt_gpufreq_get_ori_opp_idx(i)),
+		int gpufreq_cur = mt_gpufreq_get_freq_by_real_idx
+		(mt_gpufreq_get_ori_opp_idx(i));
+		det->abs_freq_tbl[i] = gpufreq_cur;
+		det->freq_tbl[i] = PERCENT(gpufreq_cur,
 					det->max_freq_khz);
 #endif
 #if 1
