@@ -1336,6 +1336,10 @@ static void get_volt_table_in_thread(struct eem_det *det)
 	unsigned int i, verr = 0;
 	int low_temp_offset = 0, rm_dvtfix_offset = 0;
 	unsigned int t_clamp = 0;
+	int new_volt = 0;
+	int step_change = 0;
+	int max_f = 0;
+	int min_f = 0;
 
 	if (det == NULL)
 		return;
@@ -1609,6 +1613,8 @@ static void get_volt_table_in_thread(struct eem_det *det)
 
 	/* scale of det->volt_offset must equal 10uV */
 	/* if has record table, min with record table of each cpu */
+	max_f = ndet->abs_freq_tbl[0];
+	min_f = ndet->abs_freq_tbl[ndet->num_freq_tbl - 1];
 	for (i = 0; i < ndet->num_freq_tbl; i++) {
 #if !ENABLE_MINIHQA
 		if (ndet->volt_policy) {
@@ -1640,11 +1646,8 @@ static void get_volt_table_in_thread(struct eem_det *det)
 				low_temp_offset = ndet->low_temp_off;
 		}
 
-		int new_volt;
 		/* Bypass all EEM hardware calculations and offsets */
-		int step_change = 0;
-		int max_f = ndet->abs_freq_tbl[0];
-		int min_f = ndet->abs_freq_tbl[ndet->num_freq_tbl - 1];
+		step_change = 0;
 
 		if (max_f != min_f) {
 			int ratio_num = ndet->abs_freq_tbl[i] - min_f;
@@ -1658,10 +1661,23 @@ static void get_volt_table_in_thread(struct eem_det *det)
 		}
 
 		new_volt = ndet->volt_tbl_orig[i] + step_change;
+
+		if (ndet->ctrl_id != EEM_CTRL_GPU) {
+			int vmin = ndet->ops->eem_2_pmic(ndet, ndet->VMIN);
+			int vmax = ndet->ops->eem_2_pmic(ndet, ndet->VMAX);
+
+			if (new_volt < vmin)
+				new_volt = vmin;
+			if (new_volt > vmax)
+				new_volt = vmax;
+		}
+
+		/* Absolute register-width backstop.*/
 		if (new_volt < 0)
 			new_volt = 0;
 		if (new_volt > 127)
 			new_volt = 127;
+
 		ndet->volt_tbl_pmic[i] = new_volt;
 #if 0
 		eem_error("[%s].volt[%d]=0x%X, Ori[0x%x], pmic[%d]=0x%x(%d)\n",
@@ -4432,6 +4448,12 @@ static ssize_t eem_offset_proc_write(struct file *file,
 	buf[count] = '\0';
 
 	if (!kstrtoint(buf, 10, &offset)) {
+		if (offset > 0 || offset < -32) {
+			eem_error("[%s] offset %d outside allowed range [-32, 0], rejected\n",
+				   __func__, offset);
+			ret = -EINVAL;
+			goto out;
+		}
 		ret = 0;
 		det->volt_offset = offset;
 		mt_ptp_lock(&flags);
@@ -4487,6 +4509,29 @@ PROC_FOPS_RW(eem_debug);
 PROC_FOPS_RO(eem_status);
 PROC_FOPS_RO(eem_cur_volt);
 PROC_FOPS_RW(eem_offset);
+
+void eem_det_set_offset(int det_id, int offset)
+{
+	unsigned long flags;
+	struct eem_det *det;
+
+	if (det_id < 0 || det_id >= NR_EEM_DET)
+		return;
+
+	if (offset > 0 || offset < -32) {
+		eem_error("[%s] offset %d outside allowed range [-32, 0], rejected\n",
+			   __func__, offset);
+		return;
+	}
+
+	det = &eem_detectors[det_id];
+	det->volt_offset = offset;
+	mt_ptp_lock(&flags);
+	eem_error("[%s]\n", __func__);
+	eem_set_eem_volt(det);
+	mt_ptp_unlock(&flags);
+}
+EXPORT_SYMBOL(eem_det_set_offset);
 PROC_FOPS_RO(eem_dump);
 PROC_FOPS_RW(eem_log_en);
 PROC_FOPS_RW(eem_setmargin);
